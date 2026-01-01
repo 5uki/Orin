@@ -8,9 +8,19 @@
 !pnpm-lock.yaml
 !tsconfig.json
 !wrangler.toml.example
+!wrangler.toml
 !eslint.config.js
 !_routes.json
+!_headers
+!_redirects
 !README.md
+
+# 忽略敏感配置文件
+wrangler.local.toml
+*.pem
+*.key
+.env
+.env.local
 
 !apps/
 !apps/**
