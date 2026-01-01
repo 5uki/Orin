@@ -1,6 +1,7 @@
 ---
 import Header from '@/components/Header.astro'
 import Footer from '@/components/Footer.astro'
+import type { SiteConfig } from '@orin/shared/types'
 import '@/styles/global.css'
 
 interface Props {
@@ -20,7 +21,7 @@ interface Props {
 
 const {
   title,
-  description = import.meta.env.PUBLIC_SITE_DESCRIPTION || '分享技术、开发与生活的点滴思考。',
+  description,
   ogImage,
   ogType = 'website',
   canonicalUrl,
@@ -30,8 +31,28 @@ const {
   backgroundImageUrl,
 } = Astro.props
 
+const apiBase = import.meta.env.PUBLIC_API_URL || ''
 const siteTitle = import.meta.env.PUBLIC_SITE_TITLE || 'Orin Blog'
-const fullTitle = title === siteTitle ? title : `${title} | ${siteTitle}`
+const defaultDescription =
+  import.meta.env.PUBLIC_SITE_DESCRIPTION || 'Share tech, development, and life.'
+
+let siteConfig: SiteConfig | null = null
+if (apiBase) {
+  try {
+    const response = await fetch(`${apiBase}/api/config`)
+    if (response.ok) {
+      const payload = (await response.json()) as { data?: SiteConfig }
+      siteConfig = payload?.data ?? null
+    }
+  } catch {
+    siteConfig = null
+  }
+}
+
+const resolvedSiteTitle = siteConfig?.siteName || siteTitle
+const resolvedDescription = description ?? siteConfig?.description ?? defaultDescription
+const fullTitle =
+  title === resolvedSiteTitle ? title : `${title} | ${resolvedSiteTitle}`
 const currentPath = Astro.url.pathname
 const siteUrl = Astro.site?.toString() || import.meta.env.PUBLIC_SITE_URL || ''
 const canonical = canonicalUrl || (siteUrl ? new URL(currentPath, siteUrl).toString() : undefined)
@@ -55,7 +76,7 @@ const bgStyle = bgStyleVars.length > 0 ? bgStyleVars.join('; ') : undefined
     <meta name="generator" content={Astro.generator} />
     
     <title>{fullTitle}</title>
-    <meta name="description" content={description} />
+    <meta name="description" content={resolvedDescription} />
     
     {noIndex ? (
       <meta name="robots" content="noindex, nofollow" />
@@ -66,14 +87,14 @@ const bgStyle = bgStyleVars.length > 0 ? bgStyleVars.join('; ') : undefined
     <!-- Open Graph -->
     <meta property="og:type" content={ogType} />
     <meta property="og:title" content={fullTitle} />
-    <meta property="og:description" content={description} />
+    <meta property="og:description" content={resolvedDescription} />
     {canonical && <meta property="og:url" content={canonical} />}
     {ogImage && <meta property="og:image" content={ogImage} />}
     
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={fullTitle} />
-    <meta name="twitter:description" content={description} />
+    <meta name="twitter:description" content={resolvedDescription} />
     {ogImage && <meta name="twitter:image" content={ogImage} />}
     
     <!-- Favicon -->
@@ -97,7 +118,11 @@ const bgStyle = bgStyleVars.length > 0 ? bgStyleVars.join('; ') : undefined
   </head>
   <body data-bg-mode={backgroundMode} style={bgStyle}>
     <div class="page-wrapper">
-      <Header currentPath={currentPath} />
+      <Header
+        currentPath={currentPath}
+        siteName={siteConfig?.siteName}
+        logoUrl={siteConfig?.logoUrl}
+      />
       <main class="main">
         <slot />
       </main>

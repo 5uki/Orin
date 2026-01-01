@@ -1,9 +1,11 @@
 ---
 interface Props {
   currentPath?: string
+  siteName?: string
+  logoUrl?: string
 }
 
-const { currentPath = '' } = Astro.props
+const { currentPath = '', siteName, logoUrl } = Astro.props
 
 const navItems = [
   { href: '/', label: '首页' },
@@ -24,14 +26,14 @@ const apiBase = import.meta.env.PUBLIC_API_URL || ''
     <div class="header-left pill-shell">
       <a href="/" class="logo">
         <img
-          src="/favicon.svg"
+          src={logoUrl || '/favicon.svg'}
           alt="Logo"
           class="logo-icon"
           id="site-logo"
           width="28"
           height="28"
         />
-        <span class="logo-text" id="site-title">Orin Blog</span>
+        <span class="logo-text" id="site-title">{siteName || 'Orin Blog'}</span>
       </a>
     </div>
 
@@ -202,6 +204,7 @@ const apiBase = import.meta.env.PUBLIC_API_URL || ''
   .logo-icon {
     width: 28px;
     height: 28px;
+    border-radius: var(--radius-md);
   }
 
   .logo-text {
