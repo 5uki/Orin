@@ -1,0 +1,102 @@
+---
+import { getCollection } from 'astro:content'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import { tagToSlug } from '@/utils/tag'
+
+const allPosts = await getCollection('posts', ({ data }) => !data.draft)
+
+// Build tag counts
+const tagCounts = new Map<string, number>()
+for (const post of allPosts) {
+  for (const tag of post.data.tags) {
+    tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+  }
+}
+
+// Sort tags alphabetically
+const sortedTags = [...tagCounts.entries()].sort((a, b) =>
+  a[0].localeCompare(b[0])
+)
+---
+
+<BaseLayout title="标签" description="浏览所有标签。">
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">标签</h1>
+      <p class="page-description">
+        共 {sortedTags.length} 个标签
+      </p>
+    </header>
+
+    {sortedTags.length > 0 ? (
+      <div class="tags-grid content-width">
+        {sortedTags.map(([tag, count]) => (
+          <a href={`/tags/${tagToSlug(tag)}`} class="tag-card">
+            <span class="tag-name">{tag}</span>
+            <span class="tag-count">{count} 篇文章</span>
+          </a>
+        ))}
+      </div>
+    ) : (
+      <p class="no-tags content-width">暂无标签。</p>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .page-header {
+    text-align: center;
+    margin-bottom: var(--space-8);
+  }
+
+  .page-title {
+    font-size: var(--text-3xl);
+    font-weight: var(--font-bold);
+    margin: 0 0 var(--space-2);
+  }
+
+  .page-description {
+    font-size: var(--text-base);
+    color: var(--color-fg-muted);
+    margin: 0;
+  }
+
+  .tags-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .tag-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-4);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
+  }
+
+  .tag-card:hover {
+    background-color: var(--color-bg-tertiary);
+    transform: translateY(-2px);
+  }
+
+  .tag-name {
+    font-size: var(--text-lg);
+    font-weight: var(--font-medium);
+    color: var(--color-fg);
+  }
+
+  .tag-count {
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+  }
+
+  .no-tags {
+    color: var(--color-fg-muted);
+    font-style: italic;
+    text-align: center;
+  }
+</style>

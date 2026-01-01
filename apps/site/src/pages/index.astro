@@ -1,0 +1,412 @@
+---
+/**
+ * Homepage
+ * 
+ * Three-column layout: sidebar (1/4) + posts (1/2) + groups/tags (1/4).
+ * Responsive: stacks vertically on mobile.
+ * 
+ * Requirements: 2.1, 2.6
+ */
+import { getCollection } from 'astro:content'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import PostCard from '@/components/PostCard.astro'
+import Sidebar from '@/components/Sidebar.astro'
+import { getGroupDisplayName, groupToSlug } from '@/utils/group'
+import { tagToSlug } from '@/utils/tag'
+
+// Get all published posts, sorted by date
+const allPosts = await getCollection('posts', ({ data }) => !data.draft)
+
+// TODO: In future, fetch pinned posts from API and merge with content posts
+// For now, we'll sort by date only
+const sortedPosts = allPosts.sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+)
+
+// Get latest posts (8-12 as per requirements)
+const latestPosts = sortedPosts.slice(0, 10)
+
+// Collect all tags with counts
+const tagCounts = new Map<string, number>()
+allPosts.forEach((post) => {
+  post.data.tags?.forEach((tag) => {
+    tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+  })
+})
+const sortedTags = [...tagCounts.entries()]
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 15)
+
+// Collect all groups with counts
+const groupCounts = new Map<string, number>()
+allPosts.forEach((post) => {
+  if (post.data.group) {
+    groupCounts.set(post.data.group, (groupCounts.get(post.data.group) || 0) + 1)
+  }
+})
+const sortedGroups = [...groupCounts.entries()]
+  .sort((a, b) => b[1] - a[1])
+
+// TODO: Fetch site config from API in production
+// For now, use default values
+const siteConfig = {
+  ownerAvatar: '/favicon.svg',
+  ownerName: 'Orin Blog',
+  description: '分享技术、开发与生活的点滴思考',
+}
+
+const apiBase = import.meta.env.PUBLIC_API_URL || ''
+---
+
+<BaseLayout title="首页" description="欢迎来到我的博客，分享技术、开发与生活的点滴思考。">
+  <div class="home-container">
+    <div class="home-layout">
+      <div class="home-header-row">
+        <div class="home-header-bar">
+          <h2 class="section-title">最新文章</h2>
+        </div>
+      </div>
+      <!-- 左侧边栏: 博主信息 (1/4 宽度) -->
+      <Sidebar
+        avatar={siteConfig.ownerAvatar}
+        name={siteConfig.ownerName}
+        description={siteConfig.description}
+        class="home-sidebar"
+      />
+
+      <!-- 中间内容区: 文章列表 (1/2 宽度) -->
+      <main class="main-content">
+        <section class="posts-section">
+          {latestPosts.length > 0 ? (
+            <div class="posts-grid">
+              {latestPosts.map((post) => (
+                <PostCard
+                  slug={post.id}
+                  title={post.data.title}
+                  date={post.data.date}
+                  updatedDate={post.data.updatedDate}
+                  summary={post.data.summary}
+                  tags={post.data.tags}
+                  isPinned={false}
+                  group={post.data.group}
+                />
+              ))}
+            </div>
+          ) : (
+            <p class="no-posts">暂无文章，敬请期待！</p>
+          )}
+          
+          {sortedPosts.length > latestPosts.length && (
+            <a href="/archive" class="view-all">
+              查看全部文章 →
+            </a>
+          )}
+        </section>
+      </main>
+
+      <!-- 右侧边栏: 分组和标签 (1/4 宽度) -->
+      <aside class="right-sidebar">
+        <!-- 分组 -->
+        {sortedGroups.length > 0 && (
+          <div class="widget">
+            <h3 class="widget-title">分组</h3>
+            <ul class="group-list">
+              {sortedGroups.map(([group, count]) => (
+                <li>
+                  <a href={`/groups/${groupToSlug(group)}`} class="group-item">
+                    <span class="group-name">{getGroupDisplayName(group)}</span>
+                    <span class="group-count">{count}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <!-- 标签 -->
+        {sortedTags.length > 0 && (
+          <div class="widget">
+            <h3 class="widget-title">标签</h3>
+            <div class="tag-list">
+              {sortedTags.map(([tag, count]) => (
+                <a href={`/tags/${tagToSlug(tag)}`} class="tag-item">
+                  <span class="tag-name">{tag}</span>
+                  <span class="tag-count">{count}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+      </aside>
+    </div>
+  </div>
+</BaseLayout>
+
+<script define:vars={{ apiBase }}>
+  const badgeSvg = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+    </svg>
+    <span>置顶</span>
+  `
+
+  fetch(`${apiBase}/api/posts/pinned`)
+    .then((res) => (res.ok ? res.json() : null))
+    .then((payload) => {
+      if (!payload || !payload.data || !Array.isArray(payload.data)) return
+      const pinnedSlugs = new Set(payload.data.map((item) => item.slug))
+      const cards = document.querySelectorAll('[data-post-slug]')
+      cards.forEach((card) => {
+        const slug = card.getAttribute('data-post-slug')
+        if (!slug || !pinnedSlugs.has(slug)) return
+        card.classList.add('pinned')
+        if (!card.querySelector('.pinned-badge')) {
+          const badge = document.createElement('div')
+          badge.className = 'pinned-badge'
+          badge.innerHTML = badgeSvg
+          card.insertBefore(badge, card.firstChild)
+        }
+      })
+    })
+    .catch(() => {})
+</script>
+
+<style>
+  .home-container {
+    width: 100%;
+    max-width: none;
+    padding: 0 var(--space-6);
+    --home-gutter: var(--space-6);
+  }
+
+  .home-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+    padding: var(--space-8) 0;
+    --home-sidebar-top: calc(
+      var(--header-height) + var(--space-6) + var(--space-6) + var(--space-8)
+    );
+    --home-sidebar-left: var(--home-gutter);
+  }
+
+  /* 桌面端: 1:2:1 布局 */
+  @media (min-width: 1024px) {
+    .home-layout {
+      grid-template-columns: 1fr 2fr 1fr;
+      gap: var(--space-8);
+      align-items: start;
+      grid-template-areas:
+        "header header header"
+        "sidebar main right";
+      --home-column-gap: var(--space-8);
+      --home-sidebar-width: calc(
+        (100vw - (2 * var(--home-gutter)) - (2 * var(--home-column-gap))) / 4
+      );
+    }
+  }
+
+  /* 平板端: 1:2 布局，右侧栏隐藏 */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .home-layout {
+      grid-template-columns: 1fr 2fr;
+      gap: var(--space-6);
+      grid-template-areas:
+        "header header"
+        "sidebar main";
+    }
+
+    .right-sidebar {
+      display: none;
+    }
+  }
+
+  .main-content {
+    min-width: 0;
+  }
+
+  .home-header-row {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: inherit;
+    gap: inherit;
+    align-items: end;
+    margin-bottom: var(--space-6);
+  }
+
+  .home-header-bar {
+    grid-column: 2 / -1;
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--color-border-light);
+  }
+
+  .section-title {
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
+    margin: 0;
+    color: var(--color-fg);
+  }
+
+  .posts-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .no-posts {
+    color: var(--color-fg-muted);
+    font-style: italic;
+    text-align: center;
+    padding: var(--space-8);
+  }
+
+  .view-all {
+    display: inline-block;
+    margin-top: var(--space-6);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--color-accent);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .view-all:hover {
+    color: var(--color-accent-hover);
+    text-decoration: underline;
+  }
+
+  /* 右侧边栏 */
+  .right-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+
+  .widget {
+    padding: var(--space-5);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-light);
+  }
+
+  .widget-title {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 var(--space-4) 0;
+  }
+
+  /* 分组列表 */
+  .group-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .group-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--color-fg-secondary);
+    text-decoration: none;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .group-item:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .group-name {
+    font-weight: var(--font-medium);
+  }
+
+  .group-count {
+    font-size: var(--text-xs);
+    color: var(--color-fg-muted);
+    background-color: var(--color-bg-secondary);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-full);
+  }
+
+  /* 标签列表 */
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .tag-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    color: var(--color-fg-secondary);
+    text-decoration: none;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .tag-item:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .tag-name {
+    font-weight: var(--font-medium);
+  }
+
+  .tag-count {
+    font-size: var(--text-xs);
+    color: var(--color-fg-muted);
+  }
+
+  /* 移动端: 右侧栏显示在底部 */
+  @media (max-width: 767px) {
+    .right-sidebar {
+      order: 3;
+    }
+
+    .home-layout {
+      grid-template-areas:
+        "header"
+        "main"
+        "sidebar"
+        "right";
+    }
+
+    .home-header-bar {
+      grid-column: 1;
+    }
+  }
+
+  .home-header-row {
+    grid-area: header;
+  }
+
+  .home-sidebar {
+    grid-area: sidebar;
+  }
+
+  .main-content {
+    grid-area: main;
+  }
+
+  .right-sidebar {
+    grid-area: right;
+  }
+</style>

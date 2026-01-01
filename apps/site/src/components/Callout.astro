@@ -1,0 +1,206 @@
+---
+/**
+ * Callout Component
+ * 
+ * Displays styled callout blocks for tips, notes, cautions, and warnings in MDX content.
+ * Each type has a distinct visual style with appropriate colors and icons.
+ * 
+ * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6
+ */
+
+export type CalloutType = 'tip' | 'note' | 'caution' | 'warning'
+
+interface Props {
+  type: CalloutType
+  title?: string
+}
+
+const { type = 'note', title } = Astro.props
+
+/**
+ * Callout type configuration
+ * | 类型 | 中文名 | 颜色 | 图标 |
+ * |------|--------|------|------|
+ * | tip | 提示 | 绿色 | 💡 |
+ * | note | 注意 | 蓝色 | 📝 |
+ * | caution | 警告 | 黄色 | ⚠️ |
+ * | warning | 危险 | 红色 | 🚨 |
+ */
+const calloutConfig: Record<CalloutType, { label: string; emoji: string }> = {
+  tip: { label: '提示', emoji: '💡' },
+  note: { label: '注意', emoji: '📝' },
+  caution: { label: '警告', emoji: '⚠️' },
+  warning: { label: '危险', emoji: '🚨' },
+}
+
+const config = calloutConfig[type]
+const displayTitle = title || config.label
+---
+
+<aside class:list={['callout', `callout-${type}`]} role="note" aria-label={displayTitle}>
+  <div class="callout-header">
+    <span class="callout-icon" aria-hidden="true">{config.emoji}</span>
+    <span class="callout-title">{displayTitle}</span>
+  </div>
+  <div class="callout-content">
+    <slot />
+  </div>
+</aside>
+
+<style>
+  .callout {
+    position: relative;
+    margin: var(--space-6) 0;
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    border-left: 4px solid;
+  }
+
+  .callout-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+
+  .callout-icon {
+    font-size: var(--text-lg);
+    line-height: 1;
+  }
+
+  .callout-title {
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+  }
+
+  .callout-content {
+    font-size: var(--text-base);
+    line-height: var(--leading-relaxed);
+  }
+
+  .callout-content :global(p) {
+    margin: 0;
+  }
+
+  .callout-content :global(p + p) {
+    margin-top: var(--space-2);
+  }
+
+  .callout-content :global(a) {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .callout-content :global(code) {
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 0.125em 0.25em;
+    border-radius: var(--radius-sm);
+    font-size: 0.9em;
+  }
+
+  /* TIP - 绿色 */
+  .callout-tip {
+    background-color: #ecfdf5;
+    border-color: #10b981;
+    color: #065f46;
+  }
+
+  .callout-tip .callout-title {
+    color: #047857;
+  }
+
+  /* NOTE - 蓝色 */
+  .callout-note {
+    background-color: #eff6ff;
+    border-color: #3b82f6;
+    color: #1e40af;
+  }
+
+  .callout-note .callout-title {
+    color: #1d4ed8;
+  }
+
+  /* CAUTION - 黄色 */
+  .callout-caution {
+    background-color: #fefce8;
+    border-color: #eab308;
+    color: #713f12;
+  }
+
+  .callout-caution .callout-title {
+    color: #a16207;
+  }
+
+  /* WARNING - 红色 */
+  .callout-warning {
+    background-color: #fef2f2;
+    border-color: #ef4444;
+    color: #991b1b;
+  }
+
+  .callout-warning .callout-title {
+    color: #dc2626;
+  }
+
+  /* Dark mode styles */
+  :global(.dark) .callout-tip {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+  }
+
+  :global(.dark) .callout-tip .callout-title {
+    color: #34d399;
+  }
+
+  :global(.dark) .callout-note {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #93c5fd;
+  }
+
+  :global(.dark) .callout-note .callout-title {
+    color: #60a5fa;
+  }
+
+  :global(.dark) .callout-caution {
+    background-color: rgba(234, 179, 8, 0.15);
+    color: #fde047;
+  }
+
+  :global(.dark) .callout-caution .callout-title {
+    color: #facc15;
+  }
+
+  :global(.dark) .callout-warning {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+  }
+
+  :global(.dark) .callout-warning .callout-title {
+    color: #f87171;
+  }
+
+  :global(.dark) .callout-content :global(code) {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .callout {
+      padding: var(--space-3);
+      margin: var(--space-4) 0;
+    }
+
+    .callout-icon {
+      font-size: var(--text-base);
+    }
+
+    .callout-title {
+      font-size: var(--text-sm);
+    }
+
+    .callout-content {
+      font-size: var(--text-sm);
+    }
+  }
+</style>

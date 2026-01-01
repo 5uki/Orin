@@ -1,0 +1,234 @@
+---
+import { getCollection, render } from 'astro:content'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import TableOfContents from '@/components/TableOfContents.astro'
+import PostNavigation from '@/components/PostNavigation.astro'
+import ArticleJsonLd from '@/components/ArticleJsonLd.astro'
+import { CommentSection } from '@/components/comments'
+import { formatChineseDate, isSameDay } from '@/utils/date'
+import { tagToSlug } from '@/utils/tag'
+import '@/styles/prose.css'
+
+export async function getStaticPaths() {
+  const posts = await getCollection('posts', ({ data }) => !data.draft)
+  const sortedPosts = posts.sort(
+    (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+  )
+
+  return sortedPosts.map((post, index) => ({
+    params: { slug: post.id },
+    props: {
+      post,
+      prev: sortedPosts[index + 1] || null,
+      next: sortedPosts[index - 1] || null,
+    },
+  }))
+}
+
+const { post, prev, next } = Astro.props
+const { Content, headings } = await render(post)
+
+// Format dates in Chinese format (Requirements: 12.1, 12.4)
+const formattedDate = formatChineseDate(post.data.date)
+
+// Check if post has been updated (Requirements: 12.2, 12.5)
+const updatedDate = post.data.updatedDate
+const hasBeenUpdated = updatedDate && !isSameDay(post.data.date, updatedDate)
+const formattedUpdatedDate = hasBeenUpdated ? formatChineseDate(updatedDate) : null
+
+// Estimate reading time (200 words per minute)
+const wordCount = post.body?.split(/\s+/).length || 0
+const readingTime = Math.max(1, Math.ceil(wordCount / 200))
+
+// Build canonical URL
+const siteUrl = Astro.site?.toString() || 'https://example.com'
+const canonicalUrl = new URL(`/posts/${post.id}/`, siteUrl).toString()
+
+// Turnstile site key for comment verification
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ''
+---
+
+<BaseLayout
+  title={post.data.title}
+  description={post.data.summary}
+  ogType="article"
+  ogImage={post.data.cover}
+  canonicalUrl={canonicalUrl}
+>
+  <ArticleJsonLd
+    slot="head"
+    title={post.data.title}
+    description={post.data.summary || ''}
+    datePublished={post.data.date}
+    url={canonicalUrl}
+    image={post.data.cover}
+  />
+  <article class="article-page">
+    <div class="container">
+      <div class="article-layout">
+        <div class="article-main">
+          <header class="article-header">
+            <h1 class="article-title">{post.data.title}</h1>
+            <div class="article-meta">
+              {/* 发布日期 (Requirements: 12.1) */}
+              <div class="date-info">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <time datetime={post.data.date.toISOString()}>发布于 {formattedDate}</time>
+              </div>
+              
+              {/* 更新日期 (Requirements: 12.2, 12.5) */}
+              {hasBeenUpdated && (
+                <div class="date-info updated">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6"></path>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
+                  <time datetime={updatedDate!.toISOString()}>更新于 {formattedUpdatedDate}</time>
+                </div>
+              )}
+              
+              <span class="meta-separator">·</span>
+              <span>{readingTime} 分钟阅读</span>
+              {post.data.tags.length > 0 && (
+                <>
+                  <span class="meta-separator">·</span>
+                  <div class="article-tags">
+                    {post.data.tags.map((tag) => (
+                      <a href={`/tags/${tagToSlug(tag)}`} class="tag">{tag}</a>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </header>
+
+          <div class="prose">
+            <Content />
+          </div>
+
+          <PostNavigation
+            prev={prev ? { slug: prev.id, title: prev.data.title } : undefined}
+            next={next ? { slug: next.id, title: next.data.title } : undefined}
+          />
+
+          <!-- Comment section -->
+          <section class="comments-section" id="comments">
+            <CommentSection client:load postSlug={post.id} turnstileSiteKey={turnstileSiteKey} />
+          </section>
+        </div>
+
+        <aside class="article-sidebar">
+          <div class="sidebar-sticky">
+            <TableOfContents headings={headings} />
+          </div>
+        </aside>
+      </div>
+    </div>
+  </article>
+</BaseLayout>
+
+<style>
+  .article-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+    max-width: var(--page-width);
+    margin: 0 auto;
+  }
+
+  @media (min-width: 1024px) {
+    .article-layout {
+      grid-template-columns: 1fr 260px;
+    }
+  }
+
+  .article-main {
+    max-width: var(--content-width);
+  }
+
+  .article-header {
+    margin-bottom: var(--space-8);
+  }
+
+  .article-title {
+    font-size: var(--text-3xl);
+    font-weight: var(--font-bold);
+    line-height: var(--leading-tight);
+    margin: 0 0 var(--space-4);
+  }
+
+  @media (min-width: 640px) {
+    .article-title {
+      font-size: var(--text-4xl);
+    }
+  }
+
+  .article-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+  }
+
+  .meta-separator {
+    color: var(--color-border);
+  }
+
+  .date-info {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .date-info.updated {
+    font-style: italic;
+    color: var(--color-fg-muted);
+  }
+
+  .article-tags {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .tag {
+    font-size: var(--text-xs);
+    color: var(--color-accent);
+    background-color: var(--color-accent-light);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    transition: background-color var(--transition-fast);
+  }
+
+  .tag:hover {
+    background-color: var(--color-bg-tertiary);
+  }
+
+  .article-sidebar {
+    display: none;
+  }
+
+  @media (min-width: 1024px) {
+    .article-sidebar {
+      display: block;
+    }
+  }
+
+  .sidebar-sticky {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-4));
+  }
+
+  .comments-section {
+    margin-top: var(--space-12);
+    padding-top: var(--space-8);
+    border-top: 1px solid var(--color-border-light);
+  }
+</style>

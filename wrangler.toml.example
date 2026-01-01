@@ -1,0 +1,48 @@
+name = "your-project-name"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "dist"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "your-db-name"
+database_id = "your-database-id"
+
+# Workers AI binding (for comment moderation)
+[ai]
+binding = "AI"
+
+# Development environment variables
+[vars]
+ENVIRONMENT = "development"
+ALLOWED_ORIGINS = "https://example.com"
+PUBLIC_SITE_URL = "https://example.com"
+PUBLIC_API_URL = "https://example.com"
+PUBLIC_SITE_TITLE = "Orin Blog"
+PUBLIC_SITE_DESCRIPTION = "Share tech, development, and life."
+GITHUB_REPO_OWNER = "your-github-username"
+GITHUB_REPO_NAME = "your-repo-name"
+GITHUB_APP_INSTALLATION_ID = "your-installation-id"
+# Required for auth/admin (set real values in dashboard/CLI)
+GITHUB_CLIENT_ID = "your-github-oauth-client-id"
+GITHUB_CLIENT_SECRET = "your-github-oauth-client-secret"
+GITHUB_APP_ID = "your-github-app-id"
+GITHUB_APP_PRIVATE_KEY = "your-github-app-private-key-pkcs8"
+ADMIN_GITHUB_IDS = "12345678,23456789"
+TURNSTILE_SECRET_KEY = "your-turnstile-secret-key"
+
+# Production environment overrides
+[env.production]
+vars = { ENVIRONMENT = "production", ALLOWED_ORIGINS = "https://example.com", PUBLIC_SITE_URL = "https://example.com", PUBLIC_API_URL = "https://example.com", PUBLIC_SITE_TITLE = "Orin Blog", PUBLIC_SITE_DESCRIPTION = "Share tech, development, and life.", GITHUB_REPO_OWNER = "your-github-username", GITHUB_REPO_NAME = "your-repo-name", GITHUB_APP_INSTALLATION_ID = "your-installation-id", GITHUB_CLIENT_ID = "your-github-oauth-client-id", GITHUB_CLIENT_SECRET = "your-github-oauth-client-secret", GITHUB_APP_ID = "your-github-app-id", GITHUB_APP_PRIVATE_KEY = "your-github-app-private-key-pkcs8", ADMIN_GITHUB_IDS = "12345678,23456789", TURNSTILE_SECRET_KEY = "your-turnstile-secret-key" }
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "your-db-name"
+database_id = "your-database-id"
+
+[env.production.ai]
+binding = "AI"
+
+# Preview environment overrides
+[env.preview]
+vars = { ENVIRONMENT = "preview", ALLOWED_ORIGINS = "https://example.com", PUBLIC_SITE_URL = "https://example.com", PUBLIC_API_URL = "https://example.com", PUBLIC_SITE_TITLE = "Orin Blog", PUBLIC_SITE_DESCRIPTION = "Share tech, development, and life.", GITHUB_REPO_OWNER = "your-github-username", GITHUB_REPO_NAME = "your-repo-name", GITHUB_APP_INSTALLATION_ID = "your-installation-id", GITHUB_CLIENT_ID = "your-github-oauth-client-id", GITHUB_CLIENT_SECRET = "your-github-oauth-client-secret", GITHUB_APP_ID = "your-github-app-id", GITHUB_APP_PRIVATE_KEY = "your-github-app-private-key-pkcs8", ADMIN_GITHUB_IDS = "12345678,23456789", TURNSTILE_SECRET_KEY = "your-turnstile-secret-key" }

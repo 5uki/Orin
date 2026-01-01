@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "Route configuration for static/dynamic split",
+  "include": ["/api/*"],
+  "exclude": []
+}

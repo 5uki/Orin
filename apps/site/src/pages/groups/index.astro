@@ -1,0 +1,119 @@
+---
+import { getCollection } from 'astro:content'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import { groupToSlug } from '@/utils/group'
+
+const allPosts = await getCollection('posts', ({ data }) => !data.draft)
+
+// Build group counts (only posts with group)
+const groupCounts = new Map<string, number>()
+for (const post of allPosts) {
+  if (post.data.group) {
+    groupCounts.set(post.data.group, (groupCounts.get(post.data.group) || 0) + 1)
+  }
+}
+
+// Sort groups alphabetically
+const sortedGroups = [...groupCounts.entries()].sort((a, b) =>
+  a[0].localeCompare(b[0])
+)
+
+// Count ungrouped posts
+const ungroupedCount = allPosts.filter((p) => !p.data.group).length
+---
+
+<BaseLayout title="分组" description="浏览所有文章分组。">
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">分组</h1>
+      <p class="page-description">
+        共 {sortedGroups.length} 个分组
+      </p>
+    </header>
+
+    {sortedGroups.length > 0 ? (
+      <div class="groups-grid content-width">
+        {sortedGroups.map(([group, count]) => (
+          <a href={`/groups/${groupToSlug(group)}`} class="group-card">
+            <span class="group-name">{group}</span>
+            <span class="group-count">{count} 篇文章</span>
+          </a>
+        ))}
+      </div>
+    ) : (
+      <p class="no-groups content-width">暂无分组。</p>
+    )}
+
+    {ungroupedCount > 0 && (
+      <p class="ungrouped-info content-width">
+        另有 {ungroupedCount} 篇文章未分组
+      </p>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .page-header {
+    text-align: center;
+    margin-bottom: var(--space-8);
+  }
+
+  .page-title {
+    font-size: var(--text-3xl);
+    font-weight: var(--font-bold);
+    margin: 0 0 var(--space-2);
+  }
+
+  .page-description {
+    font-size: var(--text-base);
+    color: var(--color-fg-muted);
+    margin: 0;
+  }
+
+  .groups-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-4);
+  }
+
+  .group-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-4);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
+    border-left: 3px solid var(--color-accent);
+  }
+
+  .group-card:hover {
+    background-color: var(--color-bg-tertiary);
+    transform: translateY(-2px);
+  }
+
+  .group-name {
+    font-size: var(--text-lg);
+    font-weight: var(--font-medium);
+    color: var(--color-fg);
+  }
+
+  .group-count {
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+  }
+
+  .no-groups {
+    color: var(--color-fg-muted);
+    font-style: italic;
+    text-align: center;
+  }
+
+  .ungrouped-info {
+    margin-top: var(--space-6);
+    text-align: center;
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+  }
+</style>

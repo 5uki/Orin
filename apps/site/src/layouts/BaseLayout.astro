@@ -1,0 +1,121 @@
+---
+import Header from '@/components/Header.astro'
+import Footer from '@/components/Footer.astro'
+import '@/styles/global.css'
+
+interface Props {
+  title: string
+  description?: string
+  ogImage?: string
+  ogType?: 'website' | 'article'
+  canonicalUrl?: string
+  noIndex?: boolean
+  /** Background mode: 'solid' or 'image' */
+  backgroundMode?: 'solid' | 'image'
+  /** Background color for solid mode */
+  backgroundColor?: string
+  /** Background image URL for image mode */
+  backgroundImageUrl?: string
+}
+
+const {
+  title,
+  description = import.meta.env.PUBLIC_SITE_DESCRIPTION || '分享技术、开发与生活的点滴思考。',
+  ogImage,
+  ogType = 'website',
+  canonicalUrl,
+  noIndex = false,
+  backgroundMode = 'solid',
+  backgroundColor,
+  backgroundImageUrl,
+} = Astro.props
+
+const siteTitle = import.meta.env.PUBLIC_SITE_TITLE || 'Orin Blog'
+const fullTitle = title === siteTitle ? title : `${title} | ${siteTitle}`
+const currentPath = Astro.url.pathname
+const siteUrl = Astro.site?.toString() || import.meta.env.PUBLIC_SITE_URL || ''
+const canonical = canonicalUrl || (siteUrl ? new URL(currentPath, siteUrl).toString() : undefined)
+
+// Build background style variables
+const bgStyleVars: string[] = []
+if (backgroundColor) {
+  bgStyleVars.push(`--bg-solid-color: ${backgroundColor}`)
+}
+if (backgroundImageUrl) {
+  bgStyleVars.push(`--bg-image-url: url('${backgroundImageUrl}')`)
+}
+const bgStyle = bgStyleVars.length > 0 ? bgStyleVars.join('; ') : undefined
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+    
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    
+    {noIndex ? (
+      <meta name="robots" content="noindex, nofollow" />
+    ) : (
+      canonical && <link rel="canonical" href={canonical} />
+    )}
+    
+    <!-- Open Graph -->
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    {canonical && <meta property="og:url" content={canonical} />}
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/rss.xml" />
+    
+    <!-- Additional head content (JSON-LD, etc.) -->
+    <slot name="head" />
+    
+    <!-- Theme initialization (prevent flash) -->
+    <script is:inline>
+      (function() {
+        const theme = localStorage.getItem('theme')
+        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark')
+        }
+      })()
+    </script>
+  </head>
+  <body data-bg-mode={backgroundMode} style={bgStyle}>
+    <div class="page-wrapper">
+      <Header currentPath={currentPath} />
+      <main class="main">
+        <slot />
+      </main>
+      <Footer />
+    </div>
+  </body>
+</html>
+
+<style>
+  .page-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding-top: calc(var(--header-height) + var(--space-6));
+  }
+
+  .main {
+    flex: 1;
+    padding: var(--space-6) 0 var(--space-8);
+  }
+</style>

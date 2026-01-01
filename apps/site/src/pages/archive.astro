@@ -1,0 +1,166 @@
+---
+import { getCollection } from 'astro:content'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+
+const allPosts = await getCollection('posts', ({ data }) => !data.draft)
+const sortedPosts = allPosts.sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+)
+
+// Chinese month names
+const chineseMonths = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
+
+// Group posts by year and month
+interface GroupedPosts {
+  [year: string]: {
+    [month: string]: typeof sortedPosts
+  }
+}
+
+const groupedPosts: GroupedPosts = {}
+
+for (const post of sortedPosts) {
+  const year = post.data.date.getFullYear().toString()
+  const monthIndex = post.data.date.getMonth()
+  const month = chineseMonths[monthIndex]
+  
+  if (!groupedPosts[year]) {
+    groupedPosts[year] = {}
+  }
+  if (!groupedPosts[year][month]) {
+    groupedPosts[year][month] = []
+  }
+  groupedPosts[year][month].push(post)
+}
+
+const years = Object.keys(groupedPosts).sort((a, b) => Number(b) - Number(a))
+---
+
+<BaseLayout title="归档" description="按日期浏览文章。">
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">归档</h1>
+      <p class="page-description">
+        共 {sortedPosts.length} 篇文章
+      </p>
+    </header>
+
+    {years.length > 0 ? (
+      <div class="archive-list content-width">
+        {years.map((year) => (
+          <section class="year-section">
+            <h2 class="year-title">{year}年</h2>
+            {Object.entries(groupedPosts[year]).map(([month, posts]) => (
+              <div class="month-group">
+                <h3 class="month-title">{month}</h3>
+                <ul class="posts-list">
+                  {posts.map((post) => (
+                    <li class="post-item">
+                      <time datetime={post.data.date.toISOString()} class="post-date">
+                        {post.data.date.getDate()}日
+                      </time>
+                      <a href={`/posts/${post.id}`} class="post-link">
+                        {post.data.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </section>
+        ))}
+      </div>
+    ) : (
+      <p class="no-posts content-width">暂无文章。</p>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .page-header {
+    text-align: center;
+    margin-bottom: var(--space-8);
+  }
+
+  .page-title {
+    font-size: var(--text-3xl);
+    font-weight: var(--font-bold);
+    margin: 0 0 var(--space-2);
+  }
+
+  .page-description {
+    font-size: var(--text-base);
+    color: var(--color-fg-muted);
+    margin: 0;
+  }
+
+  .archive-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .year-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .year-title {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-bold);
+    color: var(--color-fg);
+    margin: 0;
+    padding-bottom: var(--space-2);
+    border-bottom: 2px solid var(--color-accent);
+  }
+
+  .month-group {
+    margin-left: var(--space-4);
+  }
+
+  .month-title {
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--color-fg-secondary);
+    margin: 0 0 var(--space-2);
+  }
+
+  .posts-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .post-item {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+  }
+
+  .post-date {
+    flex-shrink: 0;
+    width: 2rem;
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .post-link {
+    font-size: var(--text-base);
+    color: var(--color-fg);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .post-link:hover {
+    color: var(--color-accent);
+  }
+
+  .no-posts {
+    color: var(--color-fg-muted);
+    font-style: italic;
+    text-align: center;
+  }
+</style>

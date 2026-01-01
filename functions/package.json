@@ -1,0 +1,22 @@
+{
+  "name": "@orin/functions",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev --d1 DB",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.7",
+    "@orin/shared": "workspace:*",
+    "hono": "^4.11.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251228.0",
+    "fast-check": "^4.5.2",
+    "wrangler": "^4.56.0"
+  }
+}
