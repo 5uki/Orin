@@ -30,6 +30,9 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': '/src',
+        '@atoms': '/src/atoms',
+        '@molecules': '/src/molecules',
+        '@coordinators': '/src/coordinators',
         '@shared': '../../packages/shared/src',
       },
     },

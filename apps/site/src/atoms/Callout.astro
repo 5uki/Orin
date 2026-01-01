@@ -1,0 +1,205 @@
+---
+/**
+ * Callout Component
+ *
+ * A visually rich callout/admonition block for MDX content.
+ * Supports multiple types: tip, note, warning, danger.
+ *
+ * @module atoms/Callout
+ */
+
+export interface Props {
+  type?: 'tip' | 'note' | 'warning' | 'danger';
+  title?: string;
+  class?: string;
+}
+
+const { type = 'note', title, class: className } = Astro.props;
+
+const typeConfig = {
+  tip: {
+    icon: '💡',
+    defaultTitle: '提示',
+    gradient: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(52, 211, 153, 0.08))',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    iconBg: 'linear-gradient(135deg, #10b981, #34d399)',
+    glowColor: 'rgba(16, 185, 129, 0.25)',
+  },
+  note: {
+    icon: '📝',
+    defaultTitle: '注意',
+    gradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(147, 197, 253, 0.08))',
+    borderColor: 'rgba(59, 130, 246, 0.4)',
+    iconBg: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
+    glowColor: 'rgba(59, 130, 246, 0.25)',
+  },
+  warning: {
+    icon: '⚠️',
+    defaultTitle: '警告',
+    gradient: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(251, 191, 36, 0.08))',
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    iconBg: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+    glowColor: 'rgba(245, 158, 11, 0.25)',
+  },
+  danger: {
+    icon: '🚨',
+    defaultTitle: '危险',
+    gradient: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(248, 113, 113, 0.08))',
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    iconBg: 'linear-gradient(135deg, #ef4444, #f87171)',
+    glowColor: 'rgba(239, 68, 68, 0.25)',
+  },
+};
+
+const config = typeConfig[type];
+const displayTitle = title || config.defaultTitle;
+---
+
+<div
+  class:list={['callout', `callout-${type}`, className]}
+  style={`--callout-gradient: ${config.gradient}; --callout-border: ${config.borderColor}; --callout-icon-bg: ${config.iconBg}; --callout-glow: ${config.glowColor};`}
+>
+  <div class="callout-header">
+    <span class="callout-icon">{config.icon}</span>
+    <span class="callout-title">{displayTitle}</span>
+  </div>
+  <div class="callout-content">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .callout {
+    position: relative;
+    margin: var(--space-6) 0;
+    padding: var(--space-5) var(--space-6);
+    background: var(--callout-gradient);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--callout-border);
+    box-shadow:
+      0 8px 32px var(--callout-glow),
+      0 2px 8px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    transition:
+      transform var(--transition-normal),
+      box-shadow var(--transition-normal);
+  }
+
+  .callout:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 12px 40px var(--callout-glow),
+      0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Decorative glow effect */
+  .callout::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--callout-icon-bg);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+
+  /* Subtle corner decoration */
+  .callout::after {
+    content: '';
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    right: -40px;
+    bottom: -60px;
+    background: radial-gradient(circle, var(--callout-glow), transparent 70%);
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  .callout-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+    position: relative;
+    z-index: 1;
+  }
+
+  .callout-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-size: 1.125rem;
+    background: var(--callout-icon-bg);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 12px var(--callout-glow);
+  }
+
+  .callout-title {
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    color: var(--color-fg);
+    letter-spacing: 0.01em;
+  }
+
+  .callout-content {
+    position: relative;
+    z-index: 1;
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    color: var(--color-fg-secondary);
+  }
+
+  .callout-content :global(p) {
+    margin: 0;
+  }
+
+  .callout-content :global(p + p) {
+    margin-top: var(--space-3);
+  }
+
+  .callout-content :global(code) {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.125em 0.375em;
+    border-radius: var(--radius-sm);
+    font-size: 0.9em;
+  }
+
+  /* Dark mode adjustments */
+  :global(.dark) .callout {
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  :global(.dark) .callout:hover {
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.4),
+      0 4px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  :global(.dark) .callout-content :global(code) {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .callout {
+      padding: var(--space-4) var(--space-5);
+      margin: var(--space-4) 0;
+    }
+
+    .callout-icon {
+      width: 28px;
+      height: 28px;
+      font-size: 1rem;
+    }
+
+    .callout-title {
+      font-size: var(--text-sm);
+    }
+  }
+</style>

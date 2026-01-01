@@ -1,55 +1,50 @@
 ---
-import { getCollection } from 'astro:content'
-import BaseLayout from '@/layouts/BaseLayout.astro'
-import PostCard from '@/components/PostCard.astro'
-import { tagToSlug } from '@/utils/tag'
+/**
+ * Tag Detail Page (L1 Entry Layer)
+ *
+ * Displays all posts with a specific tag.
+ *
+ * Delegates data fetching to Coordinator Layer (L2).
+ * Delegates UI composition to Molecular Layer (L3).
+ *
+ * Requirements: 2.1, 2.3, 2.4
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getTagStaticPaths, getTagPageData } from '@/coordinators';
+import PostCard from '@/molecules/post/PostCard.astro';
 
+// Delegate static path generation to coordinator
 export async function getStaticPaths() {
-  const allPosts = await getCollection('posts', ({ data }) => !data.draft)
-  
-  // Collect all unique tags
-  const tags = new Set<string>()
-  for (const post of allPosts) {
-    for (const tag of post.data.tags) {
-      tags.add(tag)
-    }
-  }
-
-  return [...tags].map((tag) => ({
-    params: { tag: tagToSlug(tag) },
-    props: {
-      tag,
-      posts: allPosts
-        .filter((post) => post.data.tags.includes(tag))
-        .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf()),
-    },
-  }))
+  return getTagStaticPaths();
 }
 
-const { tag, posts } = Astro.props
+const { tag, posts } = Astro.props;
+
+// Delegate data processing to coordinator
+const { posts: postData, totalPosts } = getTagPageData(tag, posts);
 ---
 
 <BaseLayout title={`标签: ${tag}`} description={`所有标记为 ${tag} 的文章。`}>
   <div class="container">
     <header class="page-header">
-      <a href="/" class="back-link">← 所有标签</a>
+      <a href="/tags" class="back-link">← 所有标签</a>
       <h1 class="page-title">
         <span class="tag-label">标签:</span> {tag}
       </h1>
       <p class="page-description">
-        共 {posts.length} 篇文章
+        共 {totalPosts} 篇文章
       </p>
     </header>
 
-    {posts.length > 0 ? (
+    {postData.length > 0 ? (
       <div class="posts-list content-width">
-        {posts.map((post) => (
+        {postData.map((post) => (
           <PostCard
             slug={post.id}
-            title={post.data.title}
-            date={post.data.date}
-            summary={post.data.summary}
-            tags={post.data.tags}
+            title={post.title}
+            date={post.date}
+            summary={post.summary}
+            tags={post.tags}
           />
         ))}
       </div>

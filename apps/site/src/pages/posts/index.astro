@@ -1,17 +1,20 @@
 ---
 /**
- * Posts List Page
- * 
+ * Posts List Page (L1 Entry Layer)
+ *
  * Displays all blog posts with card style.
+ *
+ * Delegates data fetching to Coordinator Layer (L2).
+ * Delegates UI composition to Molecular Layer (L3).
+ *
+ * Requirements: 2.1, 2.3, 2.4
  */
-import { getCollection } from 'astro:content'
-import BaseLayout from '@/layouts/BaseLayout.astro'
-import PostCard from '@/components/PostCard.astro'
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getAllPosts } from '@/coordinators/post';
+import PostCard from '@/molecules/post/PostCard.astro';
 
-const allPosts = await getCollection('posts', ({ data }) => !data.draft)
-const sortedPosts = allPosts.sort(
-  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
-)
+// Delegate data fetching to coordinator
+const sortedPosts = await getAllPosts();
 ---
 
 <BaseLayout title="全部文章" description="浏览所有博客文章。">

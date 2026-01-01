@@ -11,7 +11,6 @@
 
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import type { TrustLevel } from '@orin/shared/types';
 import {
   makeDecision,
   checkHardRules,
@@ -19,16 +18,6 @@ import {
   type RuleCheckResult,
   type AICheckResult,
 } from './moderation';
-
-/**
- * Arbitrary generator for TrustLevel
- */
-const trustLevelArb: fc.Arbitrary<TrustLevel> = fc.constantFrom(
-  0,
-  1,
-  2,
-  3
-) as fc.Arbitrary<TrustLevel>;
 
 /**
  * Arbitrary generator for successful AICheckResult
@@ -66,14 +55,13 @@ describe('Moderation Service Properties', () => {
           fc.integer({ min: 1, max: 20 }),
           fc.array(fc.string({ minLength: 1, maxLength: 10 }), { minLength: 1, maxLength: 5 }),
           successfulAIResult(0, 1),
-          trustLevelArb,
-          (ruleScore, ruleFlags, aiResult, trustLevel) => {
+          (ruleScore, ruleFlags, aiResult) => {
             const ruleResult: RuleCheckResult = {
               ruleScore,
               ruleFlags,
               hardRuleTriggered: true,
             };
-            const decision = makeDecision(ruleResult, aiResult, trustLevel);
+            const decision = makeDecision(ruleResult, aiResult);
             expect(decision.status).toBe('rejected');
             expect(decision.source).toBe('rules');
           }
@@ -85,22 +73,18 @@ describe('Moderation Service Properties', () => {
     /**
      * Requirements 6.3: Trusted users with clean content get auto-approved
      */
-    it('should approve trusted users with clean content and low AI score', () => {
+    it('should approve clean content with low AI score', () => {
       fc.assert(
-        fc.property(
-          successfulAIResult(0, THRESHOLDS.AUTO_APPROVE_AI_MAX),
-          fc.constantFrom(2, 3) as fc.Arbitrary<TrustLevel>,
-          (aiResult, trustLevel) => {
-            const ruleResult: RuleCheckResult = {
-              ruleScore: 0,
-              ruleFlags: [],
-              hardRuleTriggered: false,
-            };
-            const decision = makeDecision(ruleResult, aiResult, trustLevel);
-            expect(decision.status).toBe('approved');
-            expect(decision.source).toBe('ai');
-          }
-        ),
+        fc.property(successfulAIResult(0, THRESHOLDS.AUTO_APPROVE_AI_MAX), (aiResult) => {
+          const ruleResult: RuleCheckResult = {
+            ruleScore: 0,
+            ruleFlags: [],
+            hardRuleTriggered: false,
+          };
+          const decision = makeDecision(ruleResult, aiResult);
+          expect(decision.status).toBe('approved');
+          expect(decision.source).toBe('ai');
+        }),
         { numRuns: 100 }
       );
     });
@@ -113,14 +97,13 @@ describe('Moderation Service Properties', () => {
         fc.property(
           fc.integer({ min: 0, max: 2 }),
           successfulAIResult(THRESHOLDS.AUTO_REJECT_AI_MIN, 1),
-          trustLevelArb,
-          (ruleScore, aiResult, trustLevel) => {
+          (ruleScore, aiResult) => {
             const ruleResult: RuleCheckResult = {
               ruleScore,
               ruleFlags: [],
               hardRuleTriggered: false,
             };
-            const decision = makeDecision(ruleResult, aiResult, trustLevel);
+            const decision = makeDecision(ruleResult, aiResult);
             expect(decision.status).toBe('rejected');
             expect(decision.source).toBe('ai');
           }
@@ -141,14 +124,13 @@ describe('Moderation Service Properties', () => {
             THRESHOLDS.COMBINED_REJECT_AI_MIN,
             THRESHOLDS.AUTO_REJECT_AI_MIN - 0.01
           ),
-          trustLevelArb,
-          (ruleScore, ruleFlags, aiResult, trustLevel) => {
+          (ruleScore, ruleFlags, aiResult) => {
             const ruleResult: RuleCheckResult = {
               ruleScore,
               ruleFlags,
               hardRuleTriggered: false,
             };
-            const decision = makeDecision(ruleResult, aiResult, trustLevel);
+            const decision = makeDecision(ruleResult, aiResult);
             expect(decision.status).toBe('rejected');
             expect(decision.source).toBe('ai');
           }
@@ -169,36 +151,13 @@ describe('Moderation Service Properties', () => {
             THRESHOLDS.AUTO_APPROVE_AI_MAX + 0.01,
             THRESHOLDS.COMBINED_REJECT_AI_MIN - 0.01
           ),
-          fc.constantFrom(0, 1) as fc.Arbitrary<TrustLevel>,
-          (ruleScore, aiResult, trustLevel) => {
+          (ruleScore, aiResult) => {
             const ruleResult: RuleCheckResult = {
               ruleScore,
               ruleFlags: [],
               hardRuleTriggered: false,
             };
-            const decision = makeDecision(ruleResult, aiResult, trustLevel);
-            expect(decision.status).toBe('pending');
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-
-    /**
-     * Untrusted users don't get auto-approved even with clean content
-     */
-    it('should not auto-approve untrusted users even with clean content', () => {
-      fc.assert(
-        fc.property(
-          successfulAIResult(0, THRESHOLDS.AUTO_APPROVE_AI_MAX),
-          fc.constantFrom(0, 1) as fc.Arbitrary<TrustLevel>,
-          (aiResult, trustLevel) => {
-            const ruleResult: RuleCheckResult = {
-              ruleScore: 0,
-              ruleFlags: [],
-              hardRuleTriggered: false,
-            };
-            const decision = makeDecision(ruleResult, aiResult, trustLevel);
+            const decision = makeDecision(ruleResult, aiResult);
             expect(decision.status).toBe('pending');
           }
         ),
@@ -216,22 +175,17 @@ describe('Moderation Service Properties', () => {
      */
     it('should return pending when AI fails (never auto-approve)', () => {
       fc.assert(
-        fc.property(
-          fc.integer({ min: 0, max: 2 }),
-          failedAIResultArb,
-          trustLevelArb,
-          (ruleScore, aiResult, trustLevel) => {
-            const ruleResult: RuleCheckResult = {
-              ruleScore,
-              ruleFlags: [],
-              hardRuleTriggered: false,
-            };
-            const decision = makeDecision(ruleResult, aiResult, trustLevel);
-            expect(decision.status).not.toBe('approved');
-            expect(decision.status).toBe('pending');
-            expect(decision.source).toBe('fallback');
-          }
-        ),
+        fc.property(fc.integer({ min: 0, max: 2 }), failedAIResultArb, (ruleScore, aiResult) => {
+          const ruleResult: RuleCheckResult = {
+            ruleScore,
+            ruleFlags: [],
+            hardRuleTriggered: false,
+          };
+          const decision = makeDecision(ruleResult, aiResult);
+          expect(decision.status).not.toBe('approved');
+          expect(decision.status).toBe('pending');
+          expect(decision.source).toBe('fallback');
+        }),
         { numRuns: 100 }
       );
     });
@@ -245,14 +199,13 @@ describe('Moderation Service Properties', () => {
           fc.integer({ min: 5, max: 20 }),
           fc.array(fc.string({ minLength: 1, maxLength: 10 }), { minLength: 1, maxLength: 3 }),
           failedAIResultArb,
-          trustLevelArb,
-          (ruleScore, ruleFlags, aiResult, trustLevel) => {
+          (ruleScore, ruleFlags, aiResult) => {
             const ruleResult: RuleCheckResult = {
               ruleScore,
               ruleFlags,
               hardRuleTriggered: true,
             };
-            const decision = makeDecision(ruleResult, aiResult, trustLevel);
+            const decision = makeDecision(ruleResult, aiResult);
             expect(decision.status).toBe('rejected');
             expect(decision.source).toBe('rules');
           }
@@ -266,13 +219,13 @@ describe('Moderation Service Properties', () => {
      */
     it('should set source to fallback when AI fails', () => {
       fc.assert(
-        fc.property(failedAIResultArb, trustLevelArb, (aiResult, trustLevel) => {
+        fc.property(failedAIResultArb, (aiResult) => {
           const ruleResult: RuleCheckResult = {
             ruleScore: 0,
             ruleFlags: [],
             hardRuleTriggered: false,
           };
-          const decision = makeDecision(ruleResult, aiResult, trustLevel);
+          const decision = makeDecision(ruleResult, aiResult);
           expect(decision.source).toBe('fallback');
         }),
         { numRuns: 100 }

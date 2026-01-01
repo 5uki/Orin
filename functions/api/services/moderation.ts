@@ -5,7 +5,7 @@
  * and decision matrix for automatic approval/rejection.
  */
 
-import type { ModerationSource, TrustLevel } from '@orin/shared/types';
+import type { ModerationSource } from '@orin/shared/types';
 
 /**
  * Result of hard rule detection
@@ -525,12 +525,12 @@ export function checkWithHeuristics(content: string): AICheckResult {
  * Moderation decision thresholds
  *
  * Updated thresholds based on enhanced AI model capabilities:
- * - Lower auto-approve threshold for trusted users (0.15)
+ * - Auto-approve threshold (0.15) when content is clean
  * - Lower auto-reject threshold (0.85) for more aggressive filtering
  * - Adjusted combined rejection thresholds (0.65)
  */
 const THRESHOLDS = {
-  /** AI score threshold for auto-approval (trusted users) */
+  /** AI score threshold for auto-approval */
   AUTO_APPROVE_AI_MAX: 0.15,
   /** AI score threshold for auto-rejection */
   AUTO_REJECT_AI_MIN: 0.85,
@@ -539,7 +539,7 @@ const THRESHOLDS = {
   /** Rule score threshold for combined rejection */
   COMBINED_REJECT_RULE_MIN: 3,
   /** Minimum trust level for auto-approval */
-  AUTO_APPROVE_TRUST_MIN: 2,
+  AUTO_APPROVE_TRUST_MIN: 0,
 };
 
 /**
@@ -554,13 +554,11 @@ const THRESHOLDS = {
  *
  * @param ruleResult - Result from hard rule checks
  * @param aiResult - Result from AI classification
- * @param trustLevel - User's trust level (0-3)
  * @returns Final moderation decision
  */
 export function makeDecision(
   ruleResult: RuleCheckResult,
-  aiResult: AICheckResult,
-  trustLevel: TrustLevel
+  aiResult: AICheckResult
 ): ModerationResult {
   const baseResult = {
     aiScore: aiResult.success ? aiResult.aiScore : undefined,
@@ -588,13 +586,9 @@ export function makeDecision(
     };
   }
 
-  // Step 3: Trusted user auto-approval
-  // trust_level >= 2 AND rule_score = 0 AND ai_score <= 0.20
-  if (
-    trustLevel >= THRESHOLDS.AUTO_APPROVE_TRUST_MIN &&
-    ruleResult.ruleScore === 0 &&
-    aiResult.aiScore <= THRESHOLDS.AUTO_APPROVE_AI_MAX
-  ) {
+  // Step 3: Auto-approve clean content with low AI score
+  // rule_score = 0 AND ai_score <= 0.20
+  if (ruleResult.ruleScore === 0 && aiResult.aiScore <= THRESHOLDS.AUTO_APPROVE_AI_MAX) {
     return {
       ...baseResult,
       status: 'approved',
@@ -641,14 +635,12 @@ export function makeDecision(
  * spam, toxic, and inappropriate content detection.
  *
  * @param content - Comment content to moderate
- * @param trustLevel - User's trust level
  * @param recentContents - Recent comments from same user (for duplicate detection)
  * @param ai - Cloudflare AI binding (optional)
  * @returns Final moderation result
  */
 export async function moderate(
   content: string,
-  trustLevel: TrustLevel,
   recentContents: string[] = [],
   ai: Ai | null = null
 ): Promise<ModerationResult> {
@@ -666,7 +658,7 @@ export async function moderate(
   }
 
   // Step 3: Make decision
-  return makeDecision(ruleResult, aiResult, trustLevel);
+  return makeDecision(ruleResult, aiResult);
 }
 
 /**

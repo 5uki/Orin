@@ -1,22 +1,32 @@
 ---
-import Header from '@/components/Header.astro'
-import Footer from '@/components/Footer.astro'
-import type { SiteConfig } from '@orin/shared/types'
-import '@/styles/global.css'
+/**
+ * Base Layout (L1 Entry Layer)
+ *
+ * Provides the page skeleton structure with header, main content, and footer.
+ *
+ * Delegates configuration fetching to Coordinator Layer (L2).
+ * Delegates navigation UI to Molecular Layer (L3).
+ *
+ * Requirements: 2.1, 2.3, 2.4
+ */
+import { getSiteConfig } from '@/coordinators';
+import Header from '@/molecules/navigation/Header.astro';
+import Footer from '@/molecules/navigation/Footer.astro';
+import '@/styles/global.css';
 
 interface Props {
-  title: string
-  description?: string
-  ogImage?: string
-  ogType?: 'website' | 'article'
-  canonicalUrl?: string
-  noIndex?: boolean
+  title: string;
+  description?: string;
+  ogImage?: string;
+  ogType?: 'website' | 'article';
+  canonicalUrl?: string;
+  noIndex?: boolean;
   /** Background mode: 'solid' or 'image' */
-  backgroundMode?: 'solid' | 'image'
+  backgroundMode?: 'solid' | 'image';
   /** Background color for solid mode */
-  backgroundColor?: string
+  backgroundColor?: string;
   /** Background image URL for image mode */
-  backgroundImageUrl?: string
+  backgroundImageUrl?: string;
 }
 
 const {
@@ -29,44 +39,36 @@ const {
   backgroundMode = 'solid',
   backgroundColor,
   backgroundImageUrl,
-} = Astro.props
+} = Astro.props;
 
-const apiBase = import.meta.env.PUBLIC_API_URL || ''
-const siteTitle = import.meta.env.PUBLIC_SITE_TITLE || 'Orin Blog'
-const defaultDescription =
-  import.meta.env.PUBLIC_SITE_DESCRIPTION || 'Share tech, development, and life.'
+// Delegate configuration fetching to coordinator
+const apiBase = import.meta.env.PUBLIC_API_URL || '';
+const envSiteTitle = import.meta.env.PUBLIC_SITE_TITLE || 'Orin Blog';
+const envDescription = import.meta.env.PUBLIC_SITE_DESCRIPTION || 'Share tech, development, and life.';
 
-let siteConfig: SiteConfig | null = null
-if (apiBase) {
-  try {
-    const response = await fetch(`${apiBase}/api/config`)
-    if (response.ok) {
-      const payload = (await response.json()) as { data?: SiteConfig }
-      siteConfig = payload?.data ?? null
-    }
-  } catch {
-    siteConfig = null
-  }
-}
+const siteConfig = await getSiteConfig({
+  apiBase,
+  envDescription,
+});
 
-const resolvedSiteTitle = siteConfig?.siteName || siteTitle
-const resolvedDescription = description ?? siteConfig?.description ?? defaultDescription
-const resolvedLogoUrl = siteConfig?.logoUrl || '/favicon.svg'
+const resolvedSiteTitle = siteConfig.siteName || envSiteTitle;
+const resolvedDescription = description ?? siteConfig.description;
+const resolvedLogoUrl = siteConfig.logoUrl;
 const fullTitle =
-  title === resolvedSiteTitle ? title : `${title} | ${resolvedSiteTitle}`
-const currentPath = Astro.url.pathname
-const siteUrl = Astro.site?.toString() || import.meta.env.PUBLIC_SITE_URL || ''
-const canonical = canonicalUrl || (siteUrl ? new URL(currentPath, siteUrl).toString() : undefined)
+  title === resolvedSiteTitle ? title : `${title} | ${resolvedSiteTitle}`;
+const currentPath = Astro.url.pathname;
+const siteUrl = Astro.site?.toString() || import.meta.env.PUBLIC_SITE_URL || '';
+const canonical = canonicalUrl || (siteUrl ? new URL(currentPath, siteUrl).toString() : undefined);
 
 // Build background style variables
-const bgStyleVars: string[] = []
+const bgStyleVars: string[] = [];
 if (backgroundColor) {
-  bgStyleVars.push(`--bg-solid-color: ${backgroundColor}`)
+  bgStyleVars.push(`--bg-solid-color: ${backgroundColor}`);
 }
 if (backgroundImageUrl) {
-  bgStyleVars.push(`--bg-image-url: url('${backgroundImageUrl}')`)
+  bgStyleVars.push(`--bg-image-url: url('${backgroundImageUrl}')`);
 }
-const bgStyle = bgStyleVars.length > 0 ? bgStyleVars.join('; ') : undefined
+const bgStyle = bgStyleVars.length > 0 ? bgStyleVars.join('; ') : undefined;
 ---
 
 <!doctype html>
@@ -121,8 +123,8 @@ const bgStyle = bgStyleVars.length > 0 ? bgStyleVars.join('; ') : undefined
     <div class="page-wrapper">
       <Header
         currentPath={currentPath}
-        siteName={siteConfig?.siteName}
-        logoUrl={siteConfig?.logoUrl}
+        siteName={siteConfig.siteName}
+        logoUrl={siteConfig.logoUrl}
       />
       <main class="main">
         <slot />

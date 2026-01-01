@@ -1,39 +1,18 @@
 ---
-import { getCollection } from 'astro:content'
-import BaseLayout from '@/layouts/BaseLayout.astro'
+/**
+ * Archive Page (L1 Entry Layer)
+ *
+ * Displays all posts grouped by year and month.
+ *
+ * Delegates data fetching to Coordinator Layer (L2).
+ *
+ * Requirements: 2.1, 2.3, 2.4
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getArchivePageData } from '@/coordinators';
 
-const allPosts = await getCollection('posts', ({ data }) => !data.draft)
-const sortedPosts = allPosts.sort(
-  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
-)
-
-// Chinese month names
-const chineseMonths = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
-
-// Group posts by year and month
-interface GroupedPosts {
-  [year: string]: {
-    [month: string]: typeof sortedPosts
-  }
-}
-
-const groupedPosts: GroupedPosts = {}
-
-for (const post of sortedPosts) {
-  const year = post.data.date.getFullYear().toString()
-  const monthIndex = post.data.date.getMonth()
-  const month = chineseMonths[monthIndex]
-  
-  if (!groupedPosts[year]) {
-    groupedPosts[year] = {}
-  }
-  if (!groupedPosts[year][month]) {
-    groupedPosts[year][month] = []
-  }
-  groupedPosts[year][month].push(post)
-}
-
-const years = Object.keys(groupedPosts).sort((a, b) => Number(b) - Number(a))
+// Delegate data fetching to coordinator
+const { postsByYearMonth, years, totalPosts } = await getArchivePageData();
 ---
 
 <BaseLayout title="归档" description="按日期浏览文章。">
@@ -41,7 +20,7 @@ const years = Object.keys(groupedPosts).sort((a, b) => Number(b) - Number(a))
     <header class="page-header">
       <h1 class="page-title">归档</h1>
       <p class="page-description">
-        共 {sortedPosts.length} 篇文章
+        共 {totalPosts} 篇文章
       </p>
     </header>
 
@@ -50,17 +29,17 @@ const years = Object.keys(groupedPosts).sort((a, b) => Number(b) - Number(a))
         {years.map((year) => (
           <section class="year-section">
             <h2 class="year-title">{year}年</h2>
-            {Object.entries(groupedPosts[year]).map(([month, posts]) => (
+            {Object.entries(postsByYearMonth[year]).map(([month, posts]) => (
               <div class="month-group">
                 <h3 class="month-title">{month}</h3>
                 <ul class="posts-list">
                   {posts.map((post) => (
                     <li class="post-item">
-                      <time datetime={post.data.date.toISOString()} class="post-date">
-                        {post.data.date.getDate()}日
+                      <time datetime={post.date.toISOString()} class="post-date">
+                        {post.day}日
                       </time>
                       <a href={`/posts/${post.id}`} class="post-link">
-                        {post.data.title}
+                        {post.title}
                       </a>
                     </li>
                   ))}

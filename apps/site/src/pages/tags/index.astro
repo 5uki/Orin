@@ -1,27 +1,27 @@
 ---
-import { getCollection } from 'astro:content'
-import BaseLayout from '@/layouts/BaseLayout.astro'
-import { tagToSlug } from '@/utils/tag'
+/**
+ * Tags Index Page (L1 Entry Layer)
+ *
+ * Displays all tags with post counts.
+ *
+ * Delegates data fetching to Coordinator Layer (L2).
+ *
+ * Requirements: 2.1, 2.3, 2.4
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getAllTagsWithCounts, tagToSlug } from '@/coordinators';
 
-const allPosts = await getCollection('posts', ({ data }) => !data.draft)
+// Delegate data fetching to coordinator
+const tagCounts = await getAllTagsWithCounts();
 
-// Build tag counts
-const tagCounts = new Map<string, number>()
-for (const post of allPosts) {
-  for (const tag of post.data.tags) {
-    tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-  }
-}
-
-// Sort tags alphabetically
-const sortedTags = [...tagCounts.entries()].sort((a, b) =>
-  a[0].localeCompare(b[0])
-)
+// Sort tags alphabetically for display
+const sortedTags = [...tagCounts].sort((a, b) => a[0].localeCompare(b[0]));
 ---
 
 <BaseLayout title="标签" description="浏览所有标签。">
   <div class="container">
     <header class="page-header">
+      <a href="/" class="back-link">← 返回首页</a>
       <h1 class="page-title">标签</h1>
       <p class="page-description">
         共 {sortedTags.length} 个标签
@@ -47,6 +47,18 @@ const sortedTags = [...tagCounts.entries()].sort((a, b) =>
   .page-header {
     text-align: center;
     margin-bottom: var(--space-8);
+  }
+
+  .back-link {
+    display: inline-block;
+    margin-bottom: var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+    text-decoration: none;
+  }
+
+  .back-link:hover {
+    color: var(--color-accent);
   }
 
   .page-title {

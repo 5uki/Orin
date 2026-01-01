@@ -1,56 +1,51 @@
 ---
-import { getCollection } from 'astro:content'
-import BaseLayout from '@/layouts/BaseLayout.astro'
-import PostCard from '@/components/PostCard.astro'
-import { groupToSlug } from '@/utils/group'
+/**
+ * Group Detail Page (L1 Entry Layer)
+ *
+ * Displays all posts in a specific group.
+ *
+ * Delegates data fetching to Coordinator Layer (L2).
+ * Delegates UI composition to Molecular Layer (L3).
+ *
+ * Requirements: 2.1, 2.3, 2.4
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getGroupStaticPaths, getGroupPageData } from '@/coordinators';
+import PostCard from '@/molecules/post/PostCard.astro';
 
+// Delegate static path generation to coordinator
 export async function getStaticPaths() {
-  const allPosts = await getCollection('posts', ({ data }) => !data.draft)
-
-  // Collect all unique groups
-  const groups = new Set<string>()
-  for (const post of allPosts) {
-    if (post.data.group) {
-      groups.add(post.data.group)
-    }
-  }
-
-  return [...groups].map((group) => ({
-    params: { group: groupToSlug(group) },
-    props: {
-      group,
-      posts: allPosts
-        .filter((post) => post.data.group === group)
-        .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf()),
-    },
-  }))
+  return getGroupStaticPaths();
 }
 
-const { group, posts } = Astro.props
+const { group, posts } = Astro.props;
+
+// Delegate data processing to coordinator
+const { displayName, posts: postData, totalPosts } = getGroupPageData(group, posts);
 ---
 
-<BaseLayout title={`分组: ${group}`} description={`${group} 分组下的所有文章。`}>
+<BaseLayout title={`分组: ${displayName}`} description={`${displayName} 分组下的所有文章。`}>
   <div class="container">
     <header class="page-header">
-      <a href="/" class="back-link">← 所有分组</a>
+      <a href="/groups" class="back-link">← 所有分组</a>
       <h1 class="page-title">
-        <span class="group-label">分组:</span> {group}
+        <span class="group-label">分组:</span> {displayName}
       </h1>
       <p class="page-description">
-        共 {posts.length} 篇文章
+        共 {totalPosts} 篇文章
       </p>
     </header>
 
-    {posts.length > 0 ? (
+    {postData.length > 0 ? (
       <div class="posts-list content-width">
-        {posts.map((post) => (
+        {postData.map((post) => (
           <PostCard
             slug={post.id}
-            title={post.data.title}
-            date={post.data.date}
-            summary={post.data.summary}
-            tags={post.data.tags}
-            group={post.data.group}
+            title={post.title}
+            date={post.date}
+            summary={post.summary}
+            tags={post.tags}
+            group={post.group}
           />
         ))}
       </div>

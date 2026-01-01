@@ -146,7 +146,6 @@ export function createCommentsRoutes() {
     // Run moderation pipeline
     const moderationResult = await moderate(
       content,
-      trustLevel,
       [], // TODO: Get recent contents for duplicate detection
       c.env.AI
     );

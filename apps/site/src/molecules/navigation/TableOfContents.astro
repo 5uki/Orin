@@ -1,0 +1,133 @@
+---
+/**
+ * TableOfContents Component
+ *
+ * Displays a table of contents for article headings.
+ * Highlights the current section based on scroll position.
+ *
+ * @module molecules/navigation
+ */
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  headings: Heading[];
+}
+
+const { headings } = Astro.props;
+
+// Filter to only h2 and h3 headings
+const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+---
+
+{
+  tocHeadings.length > 0 && (
+    <nav class="toc" aria-label="目录">
+      <h2 class="toc-title">本页目录</h2>
+      <ul class="toc-list">
+        {tocHeadings.map((heading) => (
+          <li class:list={['toc-item', `toc-depth-${heading.depth}`]}>
+            <a href={`#${heading.slug}`} class="toc-link">
+              {heading.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
+<style>
+  .toc {
+    padding: var(--space-4);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-light);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .toc-title {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 var(--space-3) 0;
+  }
+
+  .toc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .toc-item {
+    margin: 0;
+  }
+
+  .toc-depth-3 {
+    padding-left: var(--space-4);
+  }
+
+  .toc-link {
+    display: block;
+    padding: var(--space-1) var(--space-2);
+    margin: var(--space-1) 0;
+    font-size: var(--text-sm);
+    color: var(--color-fg-secondary);
+    text-decoration: none;
+    line-height: var(--leading-snug);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+  }
+
+  .toc-link:hover {
+    color: var(--color-accent);
+    background: var(--color-accent-light);
+  }
+
+  .toc-link.active {
+    color: var(--color-accent);
+    background: var(--color-accent-light);
+    font-weight: var(--font-medium);
+  }
+</style>
+
+<script>
+  function initTocHighlight() {
+    const tocLinks = document.querySelectorAll('.toc-link');
+    if (tocLinks.length === 0) return;
+
+    const headings = Array.from(tocLinks)
+      .map((link) => {
+        const id = link.getAttribute('href')?.slice(1);
+        return id ? document.getElementById(id) : null;
+      })
+      .filter(Boolean) as HTMLElement[];
+
+    function updateActiveLink() {
+      const scrollY = window.scrollY;
+      let activeIndex = 0;
+
+      for (let i = 0; i < headings.length; i++) {
+        if (headings[i].offsetTop <= scrollY + 100) {
+          activeIndex = i;
+        }
+      }
+
+      tocLinks.forEach((link, index) => {
+        link.classList.toggle('active', index === activeIndex);
+      });
+    }
+
+    window.addEventListener('scroll', updateActiveLink, { passive: true });
+    updateActiveLink();
+  }
+
+  initTocHighlight();
+  document.addEventListener('astro:after-swap', initTocHighlight);
+</script>

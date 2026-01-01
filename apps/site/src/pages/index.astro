@@ -1,76 +1,37 @@
 ---
 /**
- * Homepage
- * 
+ * Homepage (L1 Entry Layer)
+ *
  * Three-column layout: sidebar (1/4) + posts (1/2) + groups/tags (1/4).
  * Responsive: stacks vertically on mobile.
- * 
- * Requirements: 2.1, 2.6
+ *
+ * Delegates data fetching to Coordinator Layer (L2).
+ * Delegates UI composition to Molecular Layer (L3).
+ *
+ * Requirements: 2.1, 2.3, 2.4
  */
-import { getCollection } from 'astro:content'
-import BaseLayout from '@/layouts/BaseLayout.astro'
-import PostCard from '@/components/PostCard.astro'
-import Sidebar from '@/components/Sidebar.astro'
-import type { SiteConfig } from '@orin/shared/types'
-import { getGroupDisplayName, groupToSlug } from '@/utils/group'
-import { tagToSlug } from '@/utils/tag'
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getHomePageData } from '@/coordinators';
+import { tagToSlug, groupToSlug, getGroupDisplayName } from '@/molecules/taxonomy';
+import PostCard from '@/molecules/post/PostCard.astro';
+import Sidebar from '@/molecules/sidebar/Sidebar.astro';
 
-// Get all published posts, sorted by date
-const allPosts = await getCollection('posts', ({ data }) => !data.draft)
+// Delegate data fetching to coordinator
+const apiBase = import.meta.env.PUBLIC_API_URL || '';
+const siteDescription = import.meta.env.PUBLIC_SITE_DESCRIPTION || 'Share tech, development, and life.';
 
-// TODO: In future, fetch pinned posts from API and merge with content posts
-// For now, we'll sort by date only
-const sortedPosts = allPosts.sort(
-  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
-)
+const { latestPosts, tagCounts, groupCounts, sidebarConfig, totalPosts } = await getHomePageData({
+  apiBase,
+  siteDescription,
+  maxLatestPosts: 10,
+  maxTags: 100, // Get all tags, we'll slice later
+});
 
-// Get latest posts (8-12 as per requirements)
-const latestPosts = sortedPosts.slice(0, 10)
-
-// Collect all tags with counts
-const tagCounts = new Map<string, number>()
-allPosts.forEach((post) => {
-  post.data.tags?.forEach((tag) => {
-    tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
-  })
-})
-const sortedTags = [...tagCounts.entries()]
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 15)
-
-// Collect all groups with counts
-const groupCounts = new Map<string, number>()
-allPosts.forEach((post) => {
-  if (post.data.group) {
-    groupCounts.set(post.data.group, (groupCounts.get(post.data.group) || 0) + 1)
-  }
-})
-const sortedGroups = [...groupCounts.entries()]
-  .sort((a, b) => b[1] - a[1])
-
-const apiBase = import.meta.env.PUBLIC_API_URL || ''
-
-let siteConfig: SiteConfig | null = null
-if (apiBase) {
-  try {
-    const response = await fetch(`${apiBase}/api/config`)
-    if (response.ok) {
-      const payload = (await response.json()) as { data?: SiteConfig }
-      siteConfig = payload?.data ?? null
-    }
-  } catch {
-    siteConfig = null
-  }
-}
-
-const sidebarConfig = {
-  ownerAvatar: siteConfig?.ownerAvatar || '/favicon.svg',
-  ownerName: siteConfig?.ownerName || 'Orin Blog',
-  description:
-    siteConfig?.description ||
-    import.meta.env.PUBLIC_SITE_DESCRIPTION ||
-    'Share tech, development, and life.',
-}
+// Limit groups to top 5 by post count, tags to top 25
+const displayGroups = groupCounts.slice(0, 5);
+const displayTags = tagCounts.slice(0, 25);
+const hasMoreGroups = groupCounts.length > 5;
+const hasMoreTags = tagCounts.length > 25;
 ---
 
 <BaseLayout title="首页" description="欢迎来到我的博客，分享技术、开发与生活的点滴思考。">
@@ -97,13 +58,13 @@ const sidebarConfig = {
               {latestPosts.map((post) => (
                 <PostCard
                   slug={post.id}
-                  title={post.data.title}
-                  date={post.data.date}
-                  updatedDate={post.data.updatedDate}
-                  summary={post.data.summary}
-                  tags={post.data.tags}
+                  title={post.title}
+                  date={post.date}
+                  updatedDate={post.updatedDate}
+                  summary={post.summary}
+                  tags={post.tags}
                   isPinned={false}
-                  group={post.data.group}
+                  group={post.group}
                 />
               ))}
             </div>
@@ -111,7 +72,7 @@ const sidebarConfig = {
             <p class="no-posts">暂无文章，敬请期待！</p>
           )}
           
-          {sortedPosts.length > latestPosts.length && (
+          {totalPosts > latestPosts.length && (
             <a href="/archive" class="view-all">
               查看全部文章 →
             </a>
@@ -122,11 +83,16 @@ const sidebarConfig = {
       <!-- 右侧边栏: 分组和标签 (1/4 宽度) -->
       <aside class="right-sidebar">
         <!-- 分组 -->
-        {sortedGroups.length > 0 && (
+        {groupCounts.length > 0 && (
           <div class="widget">
-            <h3 class="widget-title">分组</h3>
+            <div class="widget-header">
+              <h3 class="widget-title">分组</h3>
+              {hasMoreGroups && (
+                <a href="/groups" class="widget-more">全部 →</a>
+              )}
+            </div>
             <ul class="group-list">
-              {sortedGroups.map(([group, count]) => (
+              {displayGroups.map(([group, count]) => (
                 <li>
                   <a href={`/groups/${groupToSlug(group)}`} class="group-item">
                     <span class="group-name">{getGroupDisplayName(group)}</span>
@@ -139,11 +105,16 @@ const sidebarConfig = {
         )}
 
         <!-- 标签 -->
-        {sortedTags.length > 0 && (
+        {tagCounts.length > 0 && (
           <div class="widget">
-            <h3 class="widget-title">标签</h3>
+            <div class="widget-header">
+              <h3 class="widget-title">标签</h3>
+              {hasMoreTags && (
+                <a href="/tags" class="widget-more">全部 →</a>
+              )}
+            </div>
             <div class="tag-list">
-              {sortedTags.map(([tag, count]) => (
+              {displayTags.map(([tag, count]) => (
                 <a href={`/tags/${tagToSlug(tag)}`} class="tag-item">
                   <span class="tag-name">{tag}</span>
                   <span class="tag-count">{count}</span>
@@ -252,8 +223,8 @@ const sidebarConfig = {
 
   .home-header-bar {
     grid-column: 2 / -1;
-    padding-bottom: var(--space-3);
-    border-bottom: 1px solid var(--color-border-light);
+    padding-bottom: var(--space-4);
+    border-bottom: none;
   }
 
   .section-title {
@@ -277,18 +248,23 @@ const sidebarConfig = {
   }
 
   .view-all {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
     margin-top: var(--space-6);
+    padding: var(--space-2) var(--space-4);
     font-size: var(--text-sm);
     font-weight: var(--font-medium);
     color: var(--color-accent);
+    background: var(--color-accent-light);
+    border-radius: var(--radius-full);
     text-decoration: none;
-    transition: color var(--transition-fast);
+    transition: all var(--transition-fast);
   }
 
   .view-all:hover {
-    color: var(--color-accent-hover);
-    text-decoration: underline;
+    background: var(--color-accent);
+    color: white;
   }
 
   /* 右侧边栏 */
@@ -299,23 +275,52 @@ const sidebarConfig = {
   }
 
   .widget {
+    position: relative;
     padding: var(--space-5);
-    background-color: var(--color-bg-secondary);
+    background: var(--color-bg-secondary);
     border-radius: var(--radius-lg);
     border: 1px solid var(--color-border-light);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-fast);
+  }
+
+  .widget:hover {
+    box-shadow: var(--shadow-md);
   }
 
   .widget-title {
+    position: relative;
+    z-index: 1;
     font-size: var(--text-sm);
     font-weight: var(--font-semibold);
     color: var(--color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin: 0 0 var(--space-4) 0;
+    margin: 0;
+  }
+
+  .widget-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+  }
+
+  .widget-more {
+    font-size: var(--text-xs);
+    color: var(--color-accent);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .widget-more:hover {
+    color: var(--color-accent-hover);
   }
 
   /* 分组列表 */
   .group-list {
+    position: relative;
+    z-index: 1;
     list-style: none;
     padding: 0;
     margin: 0;
@@ -329,18 +334,19 @@ const sidebarConfig = {
     align-items: center;
     justify-content: space-between;
     padding: var(--space-2) var(--space-3);
-    background-color: var(--color-bg);
+    background: var(--color-bg);
     border: 1px solid var(--color-border-light);
     border-radius: var(--radius-md);
     font-size: var(--text-sm);
     color: var(--color-fg-secondary);
     text-decoration: none;
-    transition: border-color var(--transition-fast), color var(--transition-fast);
+    transition: all var(--transition-fast);
   }
 
   .group-item:hover {
     border-color: var(--color-accent);
     color: var(--color-accent);
+    transform: translateX(2px);
   }
 
   .group-name {
@@ -349,14 +355,19 @@ const sidebarConfig = {
 
   .group-count {
     font-size: var(--text-xs);
-    color: var(--color-fg-muted);
-    background-color: var(--color-bg-secondary);
+    font-weight: var(--font-medium);
+    color: var(--color-accent);
+    background: var(--color-accent-light);
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-full);
+    min-width: 20px;
+    text-align: center;
   }
 
   /* 标签列表 */
   .tag-list {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
@@ -367,18 +378,18 @@ const sidebarConfig = {
     align-items: center;
     gap: var(--space-1);
     padding: var(--space-1) var(--space-3);
-    background-color: var(--color-bg);
-    border: 1px solid var(--color-border-light);
+    background: var(--color-accent-light);
+    border: 1px solid transparent;
     border-radius: var(--radius-full);
     font-size: var(--text-sm);
-    color: var(--color-fg-secondary);
+    color: var(--color-accent);
     text-decoration: none;
-    transition: border-color var(--transition-fast), color var(--transition-fast);
+    transition: all var(--transition-fast);
   }
 
   .tag-item:hover {
-    border-color: var(--color-accent);
-    color: var(--color-accent);
+    background: var(--color-accent);
+    color: white;
   }
 
   .tag-name {
@@ -387,7 +398,7 @@ const sidebarConfig = {
 
   .tag-count {
     font-size: var(--text-xs);
-    color: var(--color-fg-muted);
+    opacity: 0.7;
   }
 
   /* 移动端: 右侧栏显示在底部 */

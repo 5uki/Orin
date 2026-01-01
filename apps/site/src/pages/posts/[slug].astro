@@ -1,51 +1,49 @@
 ---
-import { getCollection, render } from 'astro:content'
-import BaseLayout from '@/layouts/BaseLayout.astro'
-import TableOfContents from '@/components/TableOfContents.astro'
-import PostNavigation from '@/components/PostNavigation.astro'
-import ArticleJsonLd from '@/components/ArticleJsonLd.astro'
-import { CommentSection } from '@/components/comments'
-import { formatChineseDate, isSameDay } from '@/utils/date'
-import { tagToSlug } from '@/utils/tag'
-import '@/styles/prose.css'
+/**
+ * Post Detail Page (L1 Entry Layer)
+ *
+ * Displays a single blog post with content, navigation, and comments.
+ *
+ * Delegates data fetching to Coordinator Layer (L2).
+ * Delegates UI composition to Molecular Layer (L3).
+ *
+ * Requirements: 2.1, 2.3, 2.4
+ */
+import { render } from 'astro:content';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getPostStaticPaths, getPostPageData } from '@/coordinators';
+import { tagToSlug } from '@/molecules/taxonomy';
+import TableOfContents from '@/molecules/navigation/TableOfContents.astro';
+import PostNavigation from '@/molecules/post/PostNavigation.astro';
+import ArticleJsonLd from '@/molecules/post/ArticleJsonLd.astro';
+import { CommentSection } from '@/molecules/comment';
+import '@/styles/prose.css';
 
+// Delegate static path generation to coordinator
 export async function getStaticPaths() {
-  const posts = await getCollection('posts', ({ data }) => !data.draft)
-  const sortedPosts = posts.sort(
-    (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
-  )
-
-  return sortedPosts.map((post, index) => ({
-    params: { slug: post.id },
-    props: {
-      post,
-      prev: sortedPosts[index + 1] || null,
-      next: sortedPosts[index - 1] || null,
-    },
-  }))
+  return getPostStaticPaths();
 }
 
-const { post, prev, next } = Astro.props
-const { Content, headings } = await render(post)
+const { post, prev, next } = Astro.props;
 
-// Format dates in Chinese format (Requirements: 12.1, 12.4)
-const formattedDate = formatChineseDate(post.data.date)
+// Delegate data processing to coordinator
+const siteUrl = Astro.site?.toString() || 'https://example.com';
+const {
+  headings,
+  prev: prevNav,
+  next: nextNav,
+  formattedDate,
+  formattedUpdatedDate,
+  hasBeenUpdated,
+  readingTime,
+  canonicalUrl,
+} = await getPostPageData(post, prev, next, siteUrl);
 
-// Check if post has been updated (Requirements: 12.2, 12.5)
-const updatedDate = post.data.updatedDate
-const hasBeenUpdated = updatedDate && !isSameDay(post.data.date, updatedDate)
-const formattedUpdatedDate = hasBeenUpdated ? formatChineseDate(updatedDate) : null
-
-// Estimate reading time (200 words per minute)
-const wordCount = post.body?.split(/\s+/).length || 0
-const readingTime = Math.max(1, Math.ceil(wordCount / 200))
-
-// Build canonical URL
-const siteUrl = Astro.site?.toString() || 'https://example.com'
-const canonicalUrl = new URL(`/posts/${post.id}/`, siteUrl).toString()
+// Render content (must be done in page for Astro component)
+const { Content } = await render(post);
 
 // Turnstile site key for comment verification
-const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ''
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
 ---
 
 <BaseLayout
@@ -70,7 +68,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ''
           <header class="article-header">
             <h1 class="article-title">{post.data.title}</h1>
             <div class="article-meta">
-              {/* 发布日期 (Requirements: 12.1) */}
+              {/* 发布日期 */}
               <div class="date-info">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -81,14 +79,14 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ''
                 <time datetime={post.data.date.toISOString()}>发布于 {formattedDate}</time>
               </div>
               
-              {/* 更新日期 (Requirements: 12.2, 12.5) */}
-              {hasBeenUpdated && (
+              {/* 更新日期 */}
+              {hasBeenUpdated && formattedUpdatedDate && (
                 <div class="date-info updated">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M23 4v6h-6"></path>
                     <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                   </svg>
-                  <time datetime={updatedDate!.toISOString()}>更新于 {formattedUpdatedDate}</time>
+                  <time datetime={post.data.updatedDate!.toISOString()}>更新于 {formattedUpdatedDate}</time>
                 </div>
               )}
               
@@ -111,10 +109,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ''
             <Content />
           </div>
 
-          <PostNavigation
-            prev={prev ? { slug: prev.id, title: prev.data.title } : undefined}
-            next={next ? { slug: next.id, title: next.data.title } : undefined}
-          />
+          <PostNavigation prev={prevNav ?? undefined} next={nextNav ?? undefined} />
 
           <!-- Comment section -->
           <section class="comments-section" id="comments">
@@ -153,6 +148,10 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ''
 
   .article-header {
     margin-bottom: var(--space-8);
+    padding: var(--space-6);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-light);
   }
 
   .article-title {
@@ -160,6 +159,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ''
     font-weight: var(--font-bold);
     line-height: var(--leading-tight);
     margin: 0 0 var(--space-4);
+    color: var(--color-fg);
   }
 
   @media (min-width: 640px) {
@@ -172,7 +172,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ''
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-3);
     font-size: var(--text-sm);
     color: var(--color-fg-muted);
   }
@@ -200,15 +200,16 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || ''
   .tag {
     font-size: var(--text-xs);
     color: var(--color-accent);
-    background-color: var(--color-accent-light);
+    background: var(--color-accent-light);
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
     text-decoration: none;
-    transition: background-color var(--transition-fast);
+    transition: all var(--transition-fast);
   }
 
   .tag:hover {
-    background-color: var(--color-bg-tertiary);
+    background: var(--color-accent);
+    color: white;
   }
 
   .article-sidebar {

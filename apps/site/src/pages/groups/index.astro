@@ -1,30 +1,32 @@
 ---
-import { getCollection } from 'astro:content'
-import BaseLayout from '@/layouts/BaseLayout.astro'
-import { groupToSlug } from '@/utils/group'
+/**
+ * Groups Index Page (L1 Entry Layer)
+ *
+ * Displays all groups with post counts.
+ *
+ * Delegates data fetching to Coordinator Layer (L2).
+ *
+ * Requirements: 2.1, 2.3, 2.4
+ */
+import { getCollection } from 'astro:content';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getAllGroupsWithCounts, groupToSlug } from '@/coordinators';
 
-const allPosts = await getCollection('posts', ({ data }) => !data.draft)
+// Delegate data fetching to coordinator
+const groupCounts = await getAllGroupsWithCounts();
 
-// Build group counts (only posts with group)
-const groupCounts = new Map<string, number>()
-for (const post of allPosts) {
-  if (post.data.group) {
-    groupCounts.set(post.data.group, (groupCounts.get(post.data.group) || 0) + 1)
-  }
-}
-
-// Sort groups alphabetically
-const sortedGroups = [...groupCounts.entries()].sort((a, b) =>
-  a[0].localeCompare(b[0])
-)
+// Sort groups alphabetically for display
+const sortedGroups = [...groupCounts].sort((a, b) => a[0].localeCompare(b[0]));
 
 // Count ungrouped posts
-const ungroupedCount = allPosts.filter((p) => !p.data.group).length
+const allPosts = await getCollection('posts', ({ data }) => !data.draft);
+const ungroupedCount = allPosts.filter((p) => !p.data.group).length;
 ---
 
 <BaseLayout title="分组" description="浏览所有文章分组。">
   <div class="container">
     <header class="page-header">
+      <a href="/" class="back-link">← 返回首页</a>
       <h1 class="page-title">分组</h1>
       <p class="page-description">
         共 {sortedGroups.length} 个分组
@@ -56,6 +58,18 @@ const ungroupedCount = allPosts.filter((p) => !p.data.group).length
   .page-header {
     text-align: center;
     margin-bottom: var(--space-8);
+  }
+
+  .back-link {
+    display: inline-block;
+    margin-bottom: var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+    text-decoration: none;
+  }
+
+  .back-link:hover {
+    color: var(--color-accent);
   }
 
   .page-title {
