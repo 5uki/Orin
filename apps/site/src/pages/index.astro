@@ -11,6 +11,7 @@ import { getCollection } from 'astro:content'
 import BaseLayout from '@/layouts/BaseLayout.astro'
 import PostCard from '@/components/PostCard.astro'
 import Sidebar from '@/components/Sidebar.astro'
+import type { SiteConfig } from '@orin/shared/types'
 import { getGroupDisplayName, groupToSlug } from '@/utils/group'
 import { tagToSlug } from '@/utils/tag'
 
@@ -47,15 +48,29 @@ allPosts.forEach((post) => {
 const sortedGroups = [...groupCounts.entries()]
   .sort((a, b) => b[1] - a[1])
 
-// TODO: Fetch site config from API in production
-// For now, use default values
-const siteConfig = {
-  ownerAvatar: '/favicon.svg',
-  ownerName: 'Orin Blog',
-  description: '分享技术、开发与生活的点滴思考',
+const apiBase = import.meta.env.PUBLIC_API_URL || ''
+
+let siteConfig: SiteConfig | null = null
+if (apiBase) {
+  try {
+    const response = await fetch(`${apiBase}/api/config`)
+    if (response.ok) {
+      const payload = (await response.json()) as { data?: SiteConfig }
+      siteConfig = payload?.data ?? null
+    }
+  } catch {
+    siteConfig = null
+  }
 }
 
-const apiBase = import.meta.env.PUBLIC_API_URL || ''
+const sidebarConfig = {
+  ownerAvatar: siteConfig?.ownerAvatar || '/favicon.svg',
+  ownerName: siteConfig?.ownerName || 'Orin Blog',
+  description:
+    siteConfig?.description ||
+    import.meta.env.PUBLIC_SITE_DESCRIPTION ||
+    'Share tech, development, and life.',
+}
 ---
 
 <BaseLayout title="首页" description="欢迎来到我的博客，分享技术、开发与生活的点滴思考。">
@@ -68,9 +83,9 @@ const apiBase = import.meta.env.PUBLIC_API_URL || ''
       </div>
       <!-- 左侧边栏: 博主信息 (1/4 宽度) -->
       <Sidebar
-        avatar={siteConfig.ownerAvatar}
-        name={siteConfig.ownerName}
-        description={siteConfig.description}
+        avatar={sidebarConfig.ownerAvatar}
+        name={sidebarConfig.ownerName}
+        description={sidebarConfig.description}
         class="home-sidebar"
       />
 

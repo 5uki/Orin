@@ -22,7 +22,6 @@ const {
   class: className
 } = Astro.props
 
-const apiBase = import.meta.env.PUBLIC_API_URL || ''
 ---
 
 <aside class:list={['sidebar', className]}>
@@ -50,30 +49,6 @@ const apiBase = import.meta.env.PUBLIC_API_URL || ''
   </div>
 </aside>
 
-<script define:vars={{ apiBase }}>
-  const avatarEl = document.getElementById('sidebar-avatar')
-  const nameEl = document.getElementById('sidebar-name')
-  const descriptionEl = document.getElementById('sidebar-description')
-
-  if (avatarEl || nameEl || descriptionEl) {
-    fetch(`${apiBase}/api/config`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((payload) => {
-        if (!payload || !payload.data) return
-        const { ownerAvatar, ownerName, description } = payload.data
-        if (avatarEl && ownerAvatar) {
-          avatarEl.setAttribute('src', ownerAvatar)
-        }
-        if (nameEl && ownerName) {
-          nameEl.textContent = ownerName
-        }
-        if (descriptionEl && description) {
-          descriptionEl.textContent = description
-        }
-      })
-      .catch(() => {})
-  }
-</script>
 
 <style>
   .sidebar {

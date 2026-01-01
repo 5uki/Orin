@@ -51,6 +51,7 @@ if (apiBase) {
 
 const resolvedSiteTitle = siteConfig?.siteName || siteTitle
 const resolvedDescription = description ?? siteConfig?.description ?? defaultDescription
+const resolvedLogoUrl = siteConfig?.logoUrl || '/favicon.svg'
 const fullTitle =
   title === resolvedSiteTitle ? title : `${title} | ${resolvedSiteTitle}`
 const currentPath = Astro.url.pathname
@@ -98,7 +99,7 @@ const bgStyle = bgStyleVars.length > 0 ? bgStyleVars.join('; ') : undefined
     {ogImage && <meta name="twitter:image" content={ogImage} />}
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href={resolvedLogoUrl} />
     
     <!-- RSS -->
     <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/rss.xml" />
